@@ -1,2 +1,2 @@
-# pedmas
-Pedmas evaluator written in rust
+# pemdas
+Pemdas evaluator written in rust
