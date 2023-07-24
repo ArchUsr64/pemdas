@@ -11,14 +11,15 @@ enum Symbols {
     Constant(f32),
 }
 
-#[derive(Clone, Copy, Debug)]
-enum ParseError {
-    InvalidConst,
+use std::num::ParseFloatError;
+#[derive(Clone, Debug)]
+enum SymbolicError {
+    InvalidConst(ParseFloatError),
     UnknownSymbol,
 }
 
 impl Symbols {
-    pub fn from_str(expression: &str) -> Result<Vec<Symbols>, (ParseError, usize)> {
+    pub fn from_str(expression: &str) -> Result<Vec<Symbols>, (SymbolicError, usize)> {
         let mut result = Vec::new();
         let mut constant_buffer = String::new();
         for (i, char) in expression.char_indices() {
@@ -29,7 +30,7 @@ impl Symbols {
             if !constant_buffer.is_empty() {
                 let parsed_const = constant_buffer
                     .parse()
-                    .map_err(|_| (ParseError::InvalidConst, i))?;
+                    .map_err(|x| (SymbolicError::InvalidConst(x), i))?;
                 constant_buffer.clear();
                 result.push(Symbols::Constant(parsed_const));
             }
@@ -41,13 +42,13 @@ impl Symbols {
                 '/' => Symbols::Divide,
                 '(' => Symbols::OpeningBrace,
                 ')' => Symbols::ClosingBrace,
-                _ => Err((ParseError::UnknownSymbol, i))?,
+                _ => Err((SymbolicError::UnknownSymbol, i))?,
             });
         }
         if !constant_buffer.is_empty() {
             let parsed_const = constant_buffer
                 .parse()
-                .map_err(|_| (ParseError::InvalidConst, expression.len() - 1))?;
+                .map_err(|x| (SymbolicError::InvalidConst(x), expression.len() - 1))?;
             result.push(Symbols::Constant(parsed_const));
         }
         Ok(result)
