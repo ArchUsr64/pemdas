@@ -59,11 +59,37 @@ mod tests {
     use super::*;
 
     #[test]
-    fn evaluate() {
-        let expression = "2-3";
-        let symbols_parsed = Symbols::from_str(expression).unwrap();
-        assert_eq!(symbols_parsed[0], Symbols::Constant(2f32));
-        assert_eq!(symbols_parsed[1], Symbols::Minus);
-        assert_eq!(symbols_parsed[2], Symbols::Constant(3f32));
+    fn parser() {
+        use Symbols::*;
+        assert_eq!(
+            Symbols::from_str("2+3").unwrap(),
+            vec![Constant(2.), Plus, Constant(3.)]
+        );
+        assert_eq!(
+            Symbols::from_str("(-0)").unwrap(),
+            vec![OpeningBrace, Minus, Constant(0.), ClosingBrace]
+        );
+        assert_eq!(
+            Symbols::from_str("(69.5^0.3)").unwrap(),
+            vec![
+                OpeningBrace,
+                Constant(69.5),
+                Exponent,
+                Constant(0.3),
+                ClosingBrace
+            ]
+        );
+        assert_eq!(
+            Symbols::from_str("9*(69.5/0.3)").unwrap(),
+            vec![
+                Constant(9.),
+                Multiply,
+                OpeningBrace,
+                Constant(69.5),
+                Divide,
+                Constant(0.3),
+                ClosingBrace
+            ]
+        );
     }
 }
