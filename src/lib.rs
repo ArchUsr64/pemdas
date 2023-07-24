@@ -10,64 +10,11 @@ enum Symbols {
     ClosingBrace,
     Constant(f32),
 }
-
 use std::num::ParseFloatError;
 #[derive(Clone, Debug)]
 enum SymbolicError {
     InvalidConst(ParseFloatError),
     UnknownSymbol,
-}
-
-enum UnaryOperation {
-    Negate,
-    Positificate,
-}
-
-enum BinaryOperation {
-    Add,
-    Subtract,
-    Multiply,
-    Divide,
-    Exponent,
-}
-
-enum ASTNode {
-    Unary(UnaryOperation, Box<ASTNode>),
-    Binary {
-        operation: BinaryOperation,
-        lhs: Box<ASTNode>,
-        rhs: Box<ASTNode>,
-    },
-    Constant(f32),
-}
-impl ASTNode {
-    fn evaluate(&self) -> f32 {
-        match self {
-            Self::Constant(val) => return *val,
-            Self::Unary(op, subexpression) => {
-                subexpression.evaluate()
-                    * match op {
-                        UnaryOperation::Negate => -1.,
-                        UnaryOperation::Positificate => 1.,
-                    }
-            }
-            Self::Binary {
-                operation,
-                lhs,
-                rhs,
-            } => {
-                let (lhs, rhs) = (lhs.evaluate(), rhs.evaluate());
-                use BinaryOperation::*;
-                match operation {
-                    Add => lhs + rhs,
-                    Subtract => lhs - rhs,
-                    Multiply => lhs * rhs,
-                    Divide => lhs / rhs,
-                    Exponent => lhs.powf(rhs),
-                }
-            }
-        }
-    }
 }
 
 impl Symbols {
@@ -107,6 +54,44 @@ impl Symbols {
     }
 }
 
+enum BinaryOperation {
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+    Exponent,
+}
+enum ASTNode {
+    Binary {
+        operation: BinaryOperation,
+        lhs: Box<ASTNode>,
+        rhs: Box<ASTNode>,
+    },
+    Constant(f32),
+}
+impl ASTNode {
+    fn evaluate(&self) -> f32 {
+        match self {
+            Self::Constant(val) => return *val,
+            Self::Binary {
+                operation,
+                lhs,
+                rhs,
+            } => {
+                let (lhs, rhs) = (lhs.evaluate(), rhs.evaluate());
+                use BinaryOperation::*;
+                match operation {
+                    Add => lhs + rhs,
+                    Subtract => lhs - rhs,
+                    Multiply => lhs * rhs,
+                    Divide => lhs / rhs,
+                    Exponent => lhs.powf(rhs),
+                }
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -119,6 +104,16 @@ mod tests {
             rhs: Box::new(ASTNode::Constant(7.)),
         };
         assert_eq!(ast.evaluate(), 12.);
+        let ast = ASTNode::Binary {
+            operation: BinaryOperation::Add,
+            lhs: Box::new(ASTNode::Binary {
+                operation: BinaryOperation::Multiply,
+                lhs: Box::new(ASTNode::Constant(2.)),
+                rhs: Box::new(ASTNode::Constant(9.)),
+            }),
+            rhs: Box::new(ASTNode::Constant(7.)),
+        };
+        assert_eq!(ast.evaluate(), 25.);
     }
 
     #[test]
