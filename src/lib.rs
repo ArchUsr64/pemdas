@@ -1,6 +1,6 @@
 #![allow(unused)]
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
-enum Symbols {
+enum Symbol {
     Exponent,
     Multiply,
     Divide,
@@ -17,8 +17,8 @@ enum SymbolicError {
     UnknownSymbol,
 }
 
-impl Symbols {
-    pub fn from_str(expression: &str) -> Result<Vec<Symbols>, (SymbolicError, usize)> {
+impl Symbol {
+    pub fn from_str(expression: &str) -> Result<Vec<Symbol>, (SymbolicError, usize)> {
         let mut result = Vec::new();
         let mut constant_buffer = String::new();
         for (i, char) in expression.char_indices() {
@@ -31,16 +31,16 @@ impl Symbols {
                     .parse()
                     .map_err(|x| (SymbolicError::InvalidConst(x), i))?;
                 constant_buffer.clear();
-                result.push(Symbols::Constant(parsed_const));
+                result.push(Symbol::Constant(parsed_const));
             }
             result.push(match char {
-                '+' => Symbols::Plus,
-                '^' => Symbols::Exponent,
-                '*' => Symbols::Multiply,
-                '-' => Symbols::Minus,
-                '/' => Symbols::Divide,
-                '(' => Symbols::OpeningBrace,
-                ')' => Symbols::ClosingBrace,
+                '+' => Symbol::Plus,
+                '^' => Symbol::Exponent,
+                '*' => Symbol::Multiply,
+                '-' => Symbol::Minus,
+                '/' => Symbol::Divide,
+                '(' => Symbol::OpeningBrace,
+                ')' => Symbol::ClosingBrace,
                 _ => Err((SymbolicError::UnknownSymbol, i))?,
             });
         }
@@ -48,19 +48,22 @@ impl Symbols {
             let parsed_const = constant_buffer
                 .parse()
                 .map_err(|x| (SymbolicError::InvalidConst(x), expression.len() - 1))?;
-            result.push(Symbols::Constant(parsed_const));
+            result.push(Symbol::Constant(parsed_const));
         }
         Ok(result)
     }
 }
 
+/// Higher the value, Higher the presedence
+#[derive(PartialEq, Debug)]
 enum BinaryOperation {
-    Add,
     Subtract,
+    Add,
     Multiply,
     Divide,
     Exponent,
 }
+#[derive(PartialEq, Debug)]
 enum ASTNode {
     Binary {
         operation: BinaryOperation,
@@ -69,7 +72,26 @@ enum ASTNode {
     },
     Constant(f32),
 }
+
+#[derive(Debug, PartialEq)]
+enum SemanticError {
+    UnbalancedParenthesis,
+}
 impl ASTNode {
+    fn new(expression: Vec<Symbol>) -> Result<Self, SemanticError> {
+        let unbalanced_count: i32 = expression
+            .iter()
+            .map(|symbol| match *symbol {
+                Symbol::OpeningBrace => 1,
+                Symbol::ClosingBrace => -1,
+                _ => 0,
+            })
+            .sum();
+        if unbalanced_count != 0 {
+            Err(SemanticError::UnbalancedParenthesis)?
+        }
+        Ok(Self::Constant(5.))
+    }
     fn evaluate(&self) -> f32 {
         match self {
             Self::Constant(val) => return *val,
@@ -97,7 +119,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn evaluate() {
+    fn ast_construction() {
+        let ast = ASTNode::new(Symbol::from_str("(2+3()").unwrap());
+        assert_eq!(ast, Err(SemanticError::UnbalancedParenthesis));
+    }
+
+    #[test]
+    fn ast_evaluate() {
         let ast = ASTNode::Binary {
             operation: BinaryOperation::Add,
             lhs: Box::new(ASTNode::Constant(5.)),
@@ -118,17 +146,17 @@ mod tests {
 
     #[test]
     fn parser() {
-        use Symbols::*;
+        use Symbol::*;
         assert_eq!(
-            Symbols::from_str("2+3").unwrap(),
+            Symbol::from_str("2+3").unwrap(),
             vec![Constant(2.), Plus, Constant(3.)]
         );
         assert_eq!(
-            Symbols::from_str("(-0)").unwrap(),
+            Symbol::from_str("(-0)").unwrap(),
             vec![OpeningBrace, Minus, Constant(0.), ClosingBrace]
         );
         assert_eq!(
-            Symbols::from_str("(69.5^0.3)").unwrap(),
+            Symbol::from_str("(69.5^0.3)").unwrap(),
             vec![
                 OpeningBrace,
                 Constant(69.5),
@@ -138,7 +166,7 @@ mod tests {
             ]
         );
         assert_eq!(
-            Symbols::from_str("9*(69.5/0.3)").unwrap(),
+            Symbol::from_str("9*(69.5/0.3)").unwrap(),
             vec![
                 Constant(9.),
                 Multiply,
