@@ -1,14 +1,14 @@
 #![allow(unused)]
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
 enum Symbol {
-    Exponent,
+    Constant(f32),
+    Minus,
+    Plus,
     Multiply,
     Divide,
-    Plus,
-    Minus,
-    OpeningBrace,
+    Exponent,
     ClosingBrace,
-    Constant(f32),
+    OpeningBrace,
 }
 use std::num::ParseFloatError;
 #[derive(Clone, Debug)]
