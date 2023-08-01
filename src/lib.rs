@@ -145,6 +145,7 @@ impl ASTNode {
                     Tokens::Operation(op) => Some((index, op.precedence(), *op)),
                     _ => None,
                 })
+                .rev()
                 .max_by(|a, b| a.1.cmp(&b.1))
                 .unwrap();
             let (mut lhs, mut rhs) = (None, None);
