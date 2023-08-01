@@ -55,7 +55,7 @@ impl Symbol {
 }
 
 /// Higher the value, Higher the presedence
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone, Copy)]
 enum BinaryOperation {
     Subtract,
     Add,
@@ -66,15 +66,25 @@ enum BinaryOperation {
 impl BinaryOperation {
     pub fn precedence(&self) -> usize {
         match *self {
-            Self::Subtract => 0,
-            Self::Add => 1,
-            Self::Multiply => 2,
+            Self::Subtract => 1,
+            Self::Add => 2,
             Self::Divide => 3,
-            Self::Exponent => 4,
+            Self::Multiply => 4,
+            Self::Exponent => 5,
+        }
+    }
+    pub fn from_symbol(symbol: Symbol) -> Option<Self> {
+        match symbol {
+            Symbol::Minus => Some(Self::Subtract),
+            Symbol::Plus => Some(Self::Add),
+            Symbol::Multiply => Some(Self::Multiply),
+            Symbol::Divide => Some(Self::Divide),
+            Symbol::Exponent => Some(Self::Exponent),
+            _ => None,
         }
     }
 }
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 enum ASTNode {
     Binary {
         operation: BinaryOperation,
@@ -101,9 +111,66 @@ impl ASTNode {
         if unbalanced_count != 0 {
             Err(SemanticError::UnbalancedParenthesis)?
         }
-        Ok(Self::Constant(5.))
+        #[derive(Debug)]
+        enum Tokens {
+            Operation(BinaryOperation),
+            Expression(ASTNode),
+        }
+        let mut operations = expression
+            .iter()
+            .map(|symbol| {
+                use BinaryOperation::*;
+                use Tokens::*;
+                match *symbol {
+                    Symbol::Minus => Some(Operation(Subtract)),
+                    Symbol::Plus => Some(Operation(Add)),
+                    Symbol::Multiply => Some(Operation(Multiply)),
+                    Symbol::Divide => Some(Operation(Divide)),
+                    Symbol::Exponent => Some(Operation(Exponent)),
+                    Symbol::Constant(value) => Some(Expression(ASTNode::Constant(value))),
+                    _ => None,
+                }
+            })
+            .filter_map(|x| x)
+            .collect::<Vec<_>>();
+        loop {
+            println!("{operations:#?}");
+            if operations.len() <= 2 {
+                break;
+            }
+            let (highest_precedence_index, _, operation) = operations
+                .iter()
+                .enumerate()
+                .filter_map(|(index, token)| match token {
+                    Tokens::Operation(op) => Some((index, op.precedence(), *op)),
+                    _ => None,
+                })
+                .max_by(|a, b| a.1.cmp(&b.1))
+                .unwrap();
+            let (mut lhs, mut rhs) = (None, None);
+            // TODO: Remove these clones
+            if let Tokens::Expression(node) = &operations[highest_precedence_index - 1] {
+                lhs = Some(node.clone())
+            }
+            if let Tokens::Expression(node) = &operations[highest_precedence_index + 1] {
+                rhs = Some(node.clone())
+            }
+            let expression = ASTNode::Binary {
+                operation,
+                lhs: Box::new(lhs.unwrap()),
+                rhs: Box::new(rhs.unwrap()),
+            };
+            operations[highest_precedence_index] = Tokens::Expression(expression);
+            operations.remove(highest_precedence_index - 1);
+            operations.remove(highest_precedence_index);
+        }
+        match &operations[0] {
+            // TODO: Remove this clone
+            Tokens::Expression(root) => Ok(root.clone()),
+            _ => panic!("Failed to convert expression to AST"),
+        }
     }
-    fn evaluate(&self) -> f32 {
+    pub fn evaluate(&self) -> f32 {
         match self {
             Self::Constant(val) => return *val,
             Self::Binary {
@@ -112,6 +179,7 @@ impl ASTNode {
                 rhs,
             } => {
                 let (lhs, rhs) = (lhs.evaluate(), rhs.evaluate());
+                println!("LHS: {lhs}, RHS: {rhs}");
                 use BinaryOperation::*;
                 match operation {
                     Add => lhs + rhs,
@@ -187,6 +255,28 @@ mod tests {
                 Constant(0.3),
                 ClosingBrace
             ]
+        );
+    }
+
+    #[test]
+    fn ast_constructor() {
+        assert_eq!(
+            ASTNode::new(Symbol::from_str("2+5*9/3^2").unwrap())
+                .unwrap()
+                .evaluate(),
+            7f32
+        );
+        assert_eq!(
+            ASTNode::new(Symbol::from_str("2*15*0.5-3^2").unwrap())
+                .unwrap()
+                .evaluate(),
+            6f32
+        );
+        assert_eq!(
+            ASTNode::new(Symbol::from_str("2*15/0.5-3-2").unwrap())
+                .unwrap()
+                .evaluate(),
+            6f32
         );
     }
 }
