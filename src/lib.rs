@@ -67,10 +67,10 @@ impl BinaryOperation {
     pub fn precedence(&self) -> usize {
         match *self {
             Self::Subtract => 1,
-            Self::Add => 2,
+            Self::Add => 1,
+            Self::Multiply => 2,
             Self::Divide => 3,
-            Self::Multiply => 4,
-            Self::Exponent => 5,
+            Self::Exponent => 4,
         }
     }
     pub fn from_symbol(symbol: Symbol) -> Option<Self> {
