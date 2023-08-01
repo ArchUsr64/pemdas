@@ -291,5 +291,23 @@ mod tests {
                 .evaluate(),
             19f32
         );
+        assert_eq!(
+            ASTNode::new(Symbol::from_str("567-78*13*4-8*12").unwrap())
+                .unwrap()
+                .evaluate(),
+            -3585f32
+        );
+        assert_eq!(
+            ASTNode::new(Symbol::from_str("0.9-10+5/9*2^8").unwrap())
+                .unwrap()
+                .evaluate(),
+            133.12222f32
+        );
+        assert_eq!(
+            ASTNode::new(Symbol::from_str("3^0.5+9-8/5-8*6").unwrap())
+                .unwrap()
+                .evaluate(),
+            -38.86795f32
+        );
     }
 }
