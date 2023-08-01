@@ -134,7 +134,7 @@ impl ASTNode {
             .filter_map(|x| x)
             .collect::<Vec<_>>();
         loop {
-            println!("{operations:#?}");
+            println!("{operations:?}");
             if operations.len() <= 2 {
                 break;
             }
@@ -180,7 +180,7 @@ impl ASTNode {
                 rhs,
             } => {
                 let (lhs, rhs) = (lhs.evaluate(), rhs.evaluate());
-                println!("LHS: {lhs}, RHS: {rhs}");
+                println!("LHS: {lhs}, RHS: {rhs}, {operation:?}");
                 use BinaryOperation::*;
                 match operation {
                     Add => lhs + rhs,
@@ -277,7 +277,19 @@ mod tests {
             ASTNode::new(Symbol::from_str("2*15/0.5-3-2").unwrap())
                 .unwrap()
                 .evaluate(),
-            6f32
+            55f32
+        );
+        assert_eq!(
+            ASTNode::new(Symbol::from_str("4^2/8+2*4").unwrap())
+                .unwrap()
+                .evaluate(),
+            10f32
+        );
+        assert_eq!(
+            ASTNode::new(Symbol::from_str("50/5*2-2^2*4/2+7").unwrap())
+                .unwrap()
+                .evaluate(),
+            19f32
         );
     }
 }
