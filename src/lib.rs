@@ -63,6 +63,17 @@ enum BinaryOperation {
     Divide,
     Exponent,
 }
+impl BinaryOperation {
+    pub fn precedence(&self) -> usize {
+        match *self {
+            Self::Subtract => 0,
+            Self::Add => 1,
+            Self::Multiply => 2,
+            Self::Divide => 3,
+            Self::Exponent => 4,
+        }
+    }
+}
 #[derive(PartialEq, Debug)]
 enum ASTNode {
     Binary {
