@@ -63,7 +63,7 @@ enum BinaryOperation {
     Divide,
     Exponent,
 }
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 enum Token {
     Operation(BinaryOperation),
     Expression(ASTNode),
@@ -136,13 +136,35 @@ impl ASTNode {
             })
             .filter_map(|x| x)
             .collect::<Vec<_>>();
-        Ok(Self::from_tokens(&mut tokens))
+        Ok(Self::from_tokens(tokens))
     }
-    fn from_tokens(tokens: &mut Vec<Token>) -> Self {
+    fn from_tokens(tokens: Vec<Token>) -> Self {
+        let mut tokens = tokens.clone();
         loop {
-            println!("{tokens:?}");
             if tokens.len() <= 2 {
                 break;
+            }
+            if let Some(start_index) = tokens.iter().position(|x| *x == Token::OpeningBrace) {
+                let mut brace_balance = 0;
+                let mut iterator = start_index + 1;
+                let end_index = loop {
+                    match tokens[iterator] {
+                        Token::OpeningBrace => brace_balance += 1,
+                        Token::ClosingBrace => {
+                            if brace_balance == 0 {
+                                break iterator;
+                            }
+                            brace_balance -= 1;
+                        }
+                        _ => (),
+                    }
+                    iterator += 1;
+                };
+                let expression = Self::from_tokens(tokens[start_index + 1..end_index].to_vec());
+                for _ in start_index..=end_index {
+                    tokens.remove(start_index);
+                }
+                tokens.insert(start_index, Token::Expression(expression));
             }
             let (highest_precedence_index, _, operation) = tokens
                 .iter()
@@ -186,7 +208,6 @@ impl ASTNode {
                 rhs,
             } => {
                 let (lhs, rhs) = (lhs.evaluate(), rhs.evaluate());
-                println!("LHS: {lhs}, RHS: {rhs}, {operation:?}");
                 use BinaryOperation::*;
                 match operation {
                     Add => lhs + rhs,
@@ -266,7 +287,7 @@ mod tests {
     }
 
     #[test]
-    fn ast_constructor() {
+    fn ast_constructor_braceless() {
         assert_eq!(
             ASTNode::new(Symbol::from_str("2+5*9/3^2").unwrap())
                 .unwrap()
@@ -315,5 +336,15 @@ mod tests {
                 .evaluate(),
             -38.86795f32
         );
+    }
+
+    #[test]
+    fn ast_constructor_with_braces() {
+        assert_eq!(
+            ASTNode::new(Symbol::from_str("5*(9+3)").unwrap())
+                .unwrap()
+                .evaluate(),
+            60f32
+        )
     }
 }
