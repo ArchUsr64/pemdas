@@ -56,7 +56,7 @@ impl Symbol {
 
 /// Higher the value, Higher the presedence
 #[derive(PartialEq, Debug, Clone, Copy)]
-enum BinaryOperation {
+pub enum BinaryOperation {
     Subtract,
     Add,
     Multiply,
@@ -80,7 +80,7 @@ impl BinaryOperation {
             Self::Exponent => 4,
         }
     }
-    pub fn from_symbol(symbol: Symbol) -> Option<Self> {
+    fn from_symbol(symbol: Symbol) -> Option<Self> {
         match symbol {
             Symbol::Minus => Some(Self::Subtract),
             Symbol::Plus => Some(Self::Add),
@@ -92,7 +92,7 @@ impl BinaryOperation {
     }
 }
 #[derive(PartialEq, Debug, Clone)]
-enum ASTNode {
+pub enum ASTNode {
     Binary {
         operation: BinaryOperation,
         lhs: Box<ASTNode>,
@@ -106,6 +106,11 @@ enum SemanticError {
     UnbalancedParenthesis,
 }
 impl ASTNode {
+    pub fn evaluate_from_string(str: &str) -> f32 {
+        ASTNode::new(Symbol::from_str(str).unwrap())
+            .unwrap()
+            .evaluate()
+    }
     fn new(expression: Vec<Symbol>) -> Result<Self, SemanticError> {
         let unbalanced_count: i32 = expression
             .iter()
