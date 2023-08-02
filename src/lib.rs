@@ -63,6 +63,13 @@ enum BinaryOperation {
     Divide,
     Exponent,
 }
+#[derive(Debug)]
+enum Token {
+    Operation(BinaryOperation),
+    Expression(ASTNode),
+    OpeningBrace,
+    ClosingBrace,
+}
 impl BinaryOperation {
     pub fn precedence(&self) -> usize {
         match *self {
@@ -111,16 +118,11 @@ impl ASTNode {
         if unbalanced_count != 0 {
             Err(SemanticError::UnbalancedParenthesis)?
         }
-        #[derive(Debug)]
-        enum Tokens {
-            Operation(BinaryOperation),
-            Expression(ASTNode),
-        }
-        let mut operations = expression
+        let mut tokens = expression
             .iter()
             .map(|symbol| {
                 use BinaryOperation::*;
-                use Tokens::*;
+                use Token::*;
                 match *symbol {
                     Symbol::Minus => Some(Operation(Subtract)),
                     Symbol::Plus => Some(Operation(Add)),
@@ -128,21 +130,25 @@ impl ASTNode {
                     Symbol::Divide => Some(Operation(Divide)),
                     Symbol::Exponent => Some(Operation(Exponent)),
                     Symbol::Constant(value) => Some(Expression(ASTNode::Constant(value))),
-                    _ => None,
+                    Symbol::OpeningBrace => Some(OpeningBrace),
+                    Symbol::ClosingBrace => Some(ClosingBrace),
                 }
             })
             .filter_map(|x| x)
             .collect::<Vec<_>>();
+        Ok(Self::from_tokens(&mut tokens))
+    }
+    fn from_tokens(tokens: &mut Vec<Token>) -> Self {
         loop {
-            println!("{operations:?}");
-            if operations.len() <= 2 {
+            println!("{tokens:?}");
+            if tokens.len() <= 2 {
                 break;
             }
-            let (highest_precedence_index, _, operation) = operations
+            let (highest_precedence_index, _, operation) = tokens
                 .iter()
                 .enumerate()
                 .filter_map(|(index, token)| match token {
-                    Tokens::Operation(op) => Some((index, op.precedence(), *op)),
+                    Token::Operation(op) => Some((index, op.precedence(), *op)),
                     _ => None,
                 })
                 .rev()
@@ -150,10 +156,10 @@ impl ASTNode {
                 .unwrap();
             let (mut lhs, mut rhs) = (None, None);
             // TODO: Remove these clones
-            if let Tokens::Expression(node) = &operations[highest_precedence_index - 1] {
+            if let Token::Expression(node) = &tokens[highest_precedence_index - 1] {
                 lhs = Some(node.clone())
             }
-            if let Tokens::Expression(node) = &operations[highest_precedence_index + 1] {
+            if let Token::Expression(node) = &tokens[highest_precedence_index + 1] {
                 rhs = Some(node.clone())
             }
             let expression = ASTNode::Binary {
@@ -161,13 +167,13 @@ impl ASTNode {
                 lhs: Box::new(lhs.unwrap()),
                 rhs: Box::new(rhs.unwrap()),
             };
-            operations[highest_precedence_index] = Tokens::Expression(expression);
-            operations.remove(highest_precedence_index - 1);
-            operations.remove(highest_precedence_index);
+            tokens[highest_precedence_index] = Token::Expression(expression);
+            tokens.remove(highest_precedence_index - 1);
+            tokens.remove(highest_precedence_index);
         }
-        match &operations[0] {
+        match &tokens[0] {
             // TODO: Remove this clone
-            Tokens::Expression(root) => Ok(root.clone()),
+            Token::Expression(root) => root.clone(),
             _ => panic!("Failed to convert expression to AST"),
         }
     }
