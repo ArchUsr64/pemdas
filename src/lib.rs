@@ -345,6 +345,18 @@ mod tests {
                 .unwrap()
                 .evaluate(),
             60f32
+        );
+        assert_eq!(
+            ASTNode::new(Symbol::from_str("69+420^0.5+(5-2)*5").unwrap())
+                .unwrap()
+                .evaluate(),
+            60f32
+        );
+        assert_eq!(
+            ASTNode::new(Symbol::from_str("0.5-(9^2)+10/3*(11+5)").unwrap())
+                .unwrap()
+                .evaluate(),
+            -27.166668f32
         )
     }
 }
