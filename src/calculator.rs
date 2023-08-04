@@ -1,5 +1,5 @@
-use std::io;
 use pemdas::*;
+use std::io::{self, Write};
 
 fn main() {
     println!(
@@ -13,7 +13,8 @@ Supported arithmetic:
         "
     );
     loop {
-        println!("Enter an expression:");
+        print!("Enter an expression: ");
+        io::stdout().flush().unwrap();
         let mut input = String::new();
         io::stdin().read_line(&mut input).unwrap();
 
