@@ -12,7 +12,7 @@ enum Symbol {
 }
 use std::num::ParseFloatError;
 #[derive(Clone, Debug)]
-enum SymbolicError {
+pub enum SymbolicError {
     InvalidConst(ParseFloatError),
     UnknownSymbol,
 }
@@ -102,14 +102,23 @@ pub enum ASTNode {
 }
 
 #[derive(Debug, PartialEq)]
-enum SemanticError {
+pub enum SemanticError {
     UnbalancedParenthesis,
 }
+
+#[derive(Debug)]
+pub enum EvaluationError {
+    ParserError { err: SymbolicError, index: usize },
+    SemanticError(SemanticError),
+}
 impl ASTNode {
-    pub fn evaluate_from_string(str: &str) -> f32 {
-        ASTNode::new(Symbol::from_str(str).unwrap())
-            .unwrap()
-            .evaluate()
+    pub fn evaluate_from_string(str: &str) -> Result<f32, EvaluationError> {
+        let expressions = Symbol::from_str(str).map_err(|x| EvaluationError::ParserError {
+            err: x.0,
+            index: x.1,
+        })?;
+        let ast = ASTNode::new(expressions).map_err(|x| EvaluationError::SemanticError(x))?;
+        Ok(ast.evaluate())
     }
     fn new(expression: Vec<Symbol>) -> Result<Self, SemanticError> {
         let unbalanced_count: i32 = expression
