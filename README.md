@@ -2,7 +2,7 @@
 Pemdas evaluator written in rust
 ### Supported Operations
 | Operation | Symbol |
-|     -     |   -    |
+|     -     |  :-:    |
 | Addition  |   +    |
 | Subtraction  |   -    |
 | Multiplications  |   *    |
@@ -26,6 +26,6 @@ Pemdas evaluator written in rust
 - [x] AST Evaluation
 - [ ] Unary Operators
 - [ ] Publish to [crates.io](https://crates.io)
-  - [ ] Error Handling
+  - [x] Error Handling
   - [ ] Documentation
 - [ ] Pre-processing inputs for `calculator`
