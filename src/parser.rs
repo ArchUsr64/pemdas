@@ -51,49 +51,66 @@ pub fn parse<T: FromStr + Debug + Copy>(tokens: Vec<Token<T>>) -> Option<ASTNode
 	c0(&tokens)
 }
 fn c0<T: FromStr + Debug + Copy>(tokens: &[Token<T>]) -> Option<ASTNode<T>> {
-	match tokens.get(1) {
-		Some(Token::Plus | Token::Dash) if let Some(Token::Constant(l_value)) = tokens.first() => {
-			let lhs = Box::new(ASTNode::Constant(*l_value));
-			let rhs = Box::new(c1(&tokens[2..])?);
-			Some(ASTNode::Binary {
-				operation: BinaryOperation::from_token(*tokens.get(1)?)?,
-				lhs,
-				rhs,
-			})
+	if let Some((split_index, Some(operation))) = tokens
+		.iter()
+		.enumerate()
+		.rev()
+		.find(|(_, tk)| matches!(tk, Token::Plus | Token::Dash))
+		.map(|(i, tk)| (i, BinaryOperation::from_token(*tk)))
+	{
+		let left = c0(&tokens[..split_index]);
+		let right = c1(&tokens[split_index + 1..]);
+		if let (Some(lhs), Some(rhs)) = (left, right) {
+			return Some(ASTNode::Binary {
+				operation,
+				lhs: Box::new(lhs),
+				rhs: Box::new(rhs),
+			});
 		}
-		_ => c1(tokens),
 	}
+	c1(tokens)
 }
 fn c1<T: FromStr + Debug + Copy>(tokens: &[Token<T>]) -> Option<ASTNode<T>> {
-	match tokens.get(1) {
-		Some(Token::Asterisk | Token::Slash)
-			if let Some(Token::Constant(l_value)) = tokens.first() =>
-		{
-			let lhs = Box::new(ASTNode::Constant(*l_value));
-			let rhs = Box::new(c2(&tokens[2..])?);
-			Some(ASTNode::Binary {
-				operation: BinaryOperation::from_token(*tokens.get(1)?)?,
-				lhs,
-				rhs,
-			})
+	if let Some((split_index, Some(operation))) = tokens
+		.iter()
+		.enumerate()
+		.rev()
+		.find(|(_, tk)| matches!(tk, Token::Asterisk | Token::Slash))
+		.map(|(i, tk)| (i, BinaryOperation::from_token(*tk)))
+	{
+		let left = c1(&tokens[..split_index]);
+		let right = c2(&tokens[split_index + 1..]);
+		if let (Some(lhs), Some(rhs)) = (left, right) {
+			return Some(ASTNode::Binary {
+				operation,
+				lhs: Box::new(lhs),
+				rhs: Box::new(rhs),
+			});
 		}
-		_ => c2(tokens),
 	}
+	c2(tokens)
 }
 fn c2<T: FromStr + Debug + Copy>(tokens: &[Token<T>]) -> Option<ASTNode<T>> {
-	match tokens.get(1) {
-		Some(Token::Caret) if let Some(Token::Constant(l_value)) = tokens.first() => {
-			let lhs = Box::new(ASTNode::Constant(*l_value));
-			let rhs = Box::new(c2(&tokens[2..])?);
-			Some(ASTNode::Binary {
-				operation: BinaryOperation::from_token(*tokens.get(1)?)?,
-				lhs,
-				rhs,
-			})
+	if let Some((split_index, Some(operation))) = tokens
+		.iter()
+		.enumerate()
+		.find(|(_, tk)| matches!(tk, Token::Caret))
+		.map(|(i, tk)| (i, BinaryOperation::from_token(*tk)))
+	{
+		let left_token = tokens[split_index - 1];
+		let right = c2(&tokens[split_index + 1..]);
+		if let (Token::Constant(l_value), Some(rhs)) = (left_token, right) {
+			return Some(ASTNode::Binary {
+				operation,
+				lhs: Box::new(ASTNode::Constant(l_value)),
+				rhs: Box::new(rhs),
+			});
 		}
-		_ => match tokens.first() {
-			Some(Token::Constant(value)) => Some(ASTNode::Constant(*value)),
-			_ => None,
-		},
 	}
+	if let Some(Token::Constant(only_value)) = tokens.first()
+		&& tokens.len() == 1
+	{
+		return Some(ASTNode::Constant(*only_value));
+	}
+	None
 }
