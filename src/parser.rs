@@ -1,15 +1,31 @@
+use std::ops::{Add, Div, Mul, Sub};
 use std::{fmt::Debug, str::FromStr};
 
 use super::lexer::Token;
+use super::power::Pow;
 
 #[derive(PartialEq, Debug, Clone)]
-pub enum ASTNode<T: FromStr + Debug> {
+pub enum ASTNode<T> {
 	Binary {
 		operation: BinaryOperation,
 		lhs: Box<ASTNode<T>>,
 		rhs: Box<ASTNode<T>>,
 	},
 	Constant(T),
+}
+impl<T: Sub<Output = T> + Add<Output = T> + Mul<Output = T> + Div<Output = T> + Pow<T> + Copy>
+	ASTNode<T>
+{
+	pub fn compute(&self) -> T {
+		match self {
+			ASTNode::Constant(value) => *value,
+			ASTNode::Binary {
+				operation,
+				lhs,
+				rhs,
+			} => operation.operate(lhs.compute(), rhs.compute()),
+		}
+	}
 }
 
 #[derive(PartialEq, Debug, Clone, Copy)]
@@ -30,6 +46,21 @@ impl BinaryOperation {
 			Token::Slash => Some(Self::Divide),
 			Token::Caret => Some(Self::Exponent),
 			_ => None,
+		}
+	}
+	fn operate<
+		T: Sub<Output = T> + Add<Output = T> + Mul<Output = T> + Div<Output = T> + Pow<T>,
+	>(
+		&self,
+		lhs: T,
+		rhs: T,
+	) -> T {
+		match self {
+			Self::Subtract => lhs - rhs,
+			Self::Add => lhs + rhs,
+			Self::Multiply => lhs * rhs,
+			Self::Divide => lhs / rhs,
+			Self::Exponent => lhs.pow(rhs),
 		}
 	}
 }
