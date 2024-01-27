@@ -8,12 +8,14 @@ pub enum Token<T: FromStr + Debug> {
 	Asterisk,
 	Slash,
 	Caret,
+	OpenParenthesis,
+	CloseParenthesis,
 }
 
 pub fn tokenize<'a, T: FromStr + Debug + 'a>(
 	expression: &'a str,
 ) -> impl Iterator<Item = Token<T>> + '_ {
-	let is_symbol = |i| "+-*/^".contains(i);
+	let is_symbol = |i| "+-*/^()".contains(i);
 	expression
 		.split_inclusive(is_symbol)
 		.flat_map(move |sub_str| {
@@ -30,6 +32,8 @@ pub fn tokenize<'a, T: FromStr + Debug + 'a>(
 						'*' => Some(Token::Asterisk),
 						'/' => Some(Token::Slash),
 						'^' => Some(Token::Caret),
+						'(' => Some(Token::OpenParenthesis),
+						')' => Some(Token::CloseParenthesis),
 						_ => None,
 					},
 				]
