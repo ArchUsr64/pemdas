@@ -1,4 +1,4 @@
-#![feature(if_let_guard, let_chains)]
+#![feature(if_let_guard, let_chains, exact_size_is_empty)]
 
 mod lexer;
 mod parser;

@@ -1,3 +1,4 @@
+use std::iter::Peekable;
 use std::ops::{Add, Div, Mul, Sub};
 use std::{fmt::Debug, str::FromStr};
 
@@ -74,74 +75,122 @@ impl BinaryOperation {
 ///         | *C1* **/** *C2*
 ///         | *C2*
 ///
-/// ***C2***: **Integer** ^ *C2*
-///         | **Integer**
+/// ***C2***: *C3* ^ *C2*
+///         | *C3*
 ///
-/// TODO: Replace the Vec by an iterator over `Token<T>`
+/// ***C3***: **(***C0***)** **|** **Integer**
+// TODO: Replace the Vec by an iterator over `Token<T>`
+struct Parser<T: FromStr + Debug + Copy, I: Iterator<Item = Token<T>>> {
+	tokens: Peekable<I>,
+}
+
 pub fn parse<T: FromStr + Debug + Copy>(tokens: Vec<Token<T>>) -> Option<ASTNode<T>> {
-	c0(&tokens)
+	let mut parser = Parser {
+		tokens: tokens.iter().map(|&i| i).peekable(),
+	};
+	let res = parser.c0();
+	println!("{:?}", parser.tokens.peek());
+	res
 }
-fn c0<T: FromStr + Debug + Copy>(tokens: &[Token<T>]) -> Option<ASTNode<T>> {
-	if let Some((split_index, Some(operation))) = tokens
-		.iter()
-		.enumerate()
-		.rev()
-		.find(|(_, tk)| matches!(tk, Token::Plus | Token::Dash))
-		.map(|(i, tk)| (i, BinaryOperation::from_token(*tk)))
-	{
-		let left = c0(&tokens[..split_index]);
-		let right = c1(&tokens[split_index + 1..]);
-		if let (Some(lhs), Some(rhs)) = (left, right) {
-			return Some(ASTNode::Binary {
-				operation,
-				lhs: Box::new(lhs),
-				rhs: Box::new(rhs),
-			});
+
+impl<T: FromStr + Debug + Copy, I: Iterator<Item = Token<T>>> Parser<T, I> {
+	fn c0(&mut self) -> Option<ASTNode<T>> {
+		println!("c0: {:?}", self.tokens.peek());
+		let c1 = self.c1();
+		if let Some(ref lhs) = c1 {
+			if let Some(Some(operation)) = self
+				.tokens
+				.next_if(|&tk| {
+					matches!(
+						BinaryOperation::from_token(tk),
+						Some(BinaryOperation::Add | BinaryOperation::Subtract)
+					)
+				})
+				.map(|tk| BinaryOperation::from_token(tk))
+			{
+				if let Some(rhs) = self.c0() {
+					return Some(ASTNode::Binary {
+						operation,
+						lhs: Box::new(lhs.clone()),
+						rhs: Box::new(rhs),
+					});
+				}
+			}
 		}
+		c1
 	}
-	c1(tokens)
-}
-fn c1<T: FromStr + Debug + Copy>(tokens: &[Token<T>]) -> Option<ASTNode<T>> {
-	if let Some((split_index, Some(operation))) = tokens
-		.iter()
-		.enumerate()
-		.rev()
-		.find(|(_, tk)| matches!(tk, Token::Asterisk | Token::Slash))
-		.map(|(i, tk)| (i, BinaryOperation::from_token(*tk)))
-	{
-		let left = c1(&tokens[..split_index]);
-		let right = c2(&tokens[split_index + 1..]);
-		if let (Some(lhs), Some(rhs)) = (left, right) {
-			return Some(ASTNode::Binary {
-				operation,
-				lhs: Box::new(lhs),
-				rhs: Box::new(rhs),
-			});
+	fn c1(&mut self) -> Option<ASTNode<T>> {
+		println!("c1: {:?}", self.tokens.peek());
+		let c2 = self.c2();
+		if let Some(ref lhs) = c2 {
+			if let Some(Some(operation)) = self
+				.tokens
+				.next_if(|&tk| {
+					matches!(
+						BinaryOperation::from_token(tk),
+						Some(BinaryOperation::Multiply | BinaryOperation::Divide)
+					)
+				})
+				.map(|tk| BinaryOperation::from_token(tk))
+			{
+				if let Some(rhs) = self.c1() {
+					return Some(ASTNode::Binary {
+						operation,
+						lhs: Box::new(lhs.clone()),
+						rhs: Box::new(rhs),
+					});
+				}
+			}
 		}
+		c2
 	}
-	c2(tokens)
-}
-fn c2<T: FromStr + Debug + Copy>(tokens: &[Token<T>]) -> Option<ASTNode<T>> {
-	if let Some((split_index, Some(operation))) = tokens
-		.iter()
-		.enumerate()
-		.find(|(_, tk)| matches!(tk, Token::Caret))
-		.map(|(i, tk)| (i, BinaryOperation::from_token(*tk)))
-	{
-		let left_token = tokens[split_index - 1];
-		let right = c2(&tokens[split_index + 1..]);
-		if let (Token::Constant(l_value), Some(rhs)) = (left_token, right) {
-			return Some(ASTNode::Binary {
-				operation,
-				lhs: Box::new(ASTNode::Constant(l_value)),
-				rhs: Box::new(rhs),
-			});
+	fn c2(&mut self) -> Option<ASTNode<T>> {
+		println!("c2: {:?}", self.tokens.peek());
+		let c3 = self.c3();
+		if let Some(ref lhs) = c3 {
+			println!("c2: {:?}", self.tokens.peek());
+			if let Some(Some(operation)) = self
+				.tokens
+				.next_if(|&tk| {
+					matches!(
+						BinaryOperation::from_token(tk),
+						Some(BinaryOperation::Exponent)
+					)
+				})
+				.map(|tk| BinaryOperation::from_token(tk))
+			{
+				if let Some(rhs) = self.c2() {
+					return Some(ASTNode::Binary {
+						operation,
+						lhs: Box::new(lhs.clone()),
+						rhs: Box::new(rhs),
+					});
+				}
+			}
 		}
+		c3
 	}
-	if let Some(Token::Constant(only_value)) = tokens.first()
-		&& tokens.len() == 1
-	{
-		return Some(ASTNode::Constant(*only_value));
+	fn c3(&mut self) -> Option<ASTNode<T>> {
+		println!("c3: {:?}", self.tokens.peek());
+		if self
+			.tokens
+			.next_if(|i| matches!(i, Token::OpenParenthesis))
+			.is_some()
+		{
+			let res = self.c0();
+			if self
+				.tokens
+				.next_if(|i| matches!(i, Token::CloseParenthesis))
+				.is_some()
+			{
+				return res;
+			}
+		}
+		if let Some(Token::Constant(value)) =
+			self.tokens.next_if(|i| matches!(i, Token::Constant(_)))
+		{
+			return Some(ASTNode::Constant(value));
+		}
+		None
 	}
-	None
 }
